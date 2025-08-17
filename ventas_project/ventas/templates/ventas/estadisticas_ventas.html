@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4 p-4" style="background:#f8f9fa; border-radius:10px; box-shadow:0 4px 12px rgba(0,0,0,0.1);">
+    <h2 class="text-center mb-4">Estadísticas de Ventas</h2>
+
+    <!-- Filtro por vendedor y comisión -->
+    <form method="GET" class="mb-4 row g-2 align-items-center">
+        <div class="col-auto">
+            <label for="vendedor" class="col-form-label">Vendedor:</label>
+        </div>
+        <div class="col-auto">
+            <select name="vendedor" id="vendedor" class="form-select">
+                <option value="">Todos</option>
+                {% for v in vendedores %}
+                    <option value="{{ v.id }}" {% if vendedor_seleccionado|default:'' == v.id|stringformat:"s" %}selected{% endif %}>{{ v.username }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-auto">
+            <label for="comision" class="col-form-label">Comisión %:</label>
+        </div>
+        <div class="col-auto">
+            <input type="number" step="0.01" name="comision" id="comision" class="form-control" value="{{ comision_porcentaje|default:0 }}">
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary">Filtrar</button>
+        </div>
+    </form>
+
+    <!-- Ganancia total -->
+    <div class="alert alert-success">
+        <strong>Ganancia total:</strong> ${{ total_ganancia }}
+    </div>
+
+    <!-- Ventas por vendedor -->
+    <h4>Ventas por Vendedor</h4>
+    <table class="table table-bordered table-hover">
+        <thead class="table-dark">
+            <tr>
+                <th>Vendedor</th>
+                <th>Cantidad de Ventas</th>
+                <th>Total Vendido</th>
+                <th>Comisión</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for v in ventas_por_vendedor %}
+            <tr>
+                <td>{{ v.username }}</td>
+                <td>{{ v.cantidad_ventas }}</td>
+                <td>${{ v.total_vendido|default:0 }}</td>
+                <td>${{ v.comision|default:0 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Top 5 productos más vendidos -->
+    <h4>Productos más vendidos (Top 5)</h4>
+    <table class="table table-bordered table-hover">
+        <thead class="table-dark">
+            <tr>
+                <th>Producto</th>
+                <th>Cantidad Total</th>
+                <th>Total Vendido</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in productos_mas_vendidos %}
+            <tr>
+                <td>{{ p.producto__nombre }}</td>
+                <td>{{ p.cantidad_total }}</td>
+                <td>${{ p.total_vendido }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Productos con bajo stock -->
+    <h4>Productos con bajo stock (≤5)</h4>
+    <table class="table table-bordered table-hover">
+        <thead class="table-dark">
+            <tr>
+                <th>Producto</th>
+                <th>Stock</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in productos_bajo_stock %}
+            <tr>
+                <td>{{ p.nombre }}</td>
+                <td>{{ p.stock }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+
+
+
+
+
+

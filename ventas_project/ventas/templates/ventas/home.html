@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Inicio - Sistema de Ventas{% endblock %}
+
+{% block content %}
+<style>
+.app-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #1f2937;
+    color: #fff;
+    border-radius: 15px;
+    padding: 20px;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    text-decoration: none;
+}
+
+.app-btn i {
+    font-size: 2.5rem;
+    margin-bottom: 10px;
+}
+
+.app-btn p {
+    margin: 0;
+    font-weight: bold;
+}
+
+.app-btn:hover {
+    background: #4f46e5;
+    transform: translateY(-5px);
+    box-shadow: 0 6px 18px rgba(0,0,0,0.4);
+    color: #fff;
+}
+</style>
+
+<div class="d-flex flex-column align-items-center mt-5">
+    <img src="{% static 'logo.jpg' %}" alt="Logo Empresa" class="mb-4" style="max-width:250px; height:auto;">
+    <div class="text-center mb-5 p-3 rounded" style="background: linear-gradient(to right, #000000, #555555); color: #fff; box-shadow: 2px 2px 10px rgba(0,0,0,0.3);">
+        <h2 class="fw-bold m-0">BIENVENIDO A ONIX STORE</h2>
+    </div>
+
+    <div class="row justify-content-center g-4 w-100" style="max-width: 1000px;">
+        {% if accesos %}
+            {% for acceso in accesos %}
+            <div class="col-6 col-md-3">
+                <a href="{% url acceso.url %}" class="app-btn text-center">
+                    <i class="bi {{ acceso.icon }}"></i>
+                    <p>{{ acceso.label }}</p>
+                </a>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p class="text-center text-danger">No tiene accesos configurados para su rol.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

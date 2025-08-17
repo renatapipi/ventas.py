@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block title %}Cuenta Corriente de {{ cliente.nombre }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Cuenta Corriente - {{ cliente.nombre }}</h2>
+    <p><strong>Saldo actual:</strong> ${{ cliente.saldo_cc }}</p>
+
+    {% if productos %}
+        <h4>Productos pendientes de pago</h4>
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Fecha Venta</th>
+                    <th>Producto</th>
+                    <th>Cantidad</th>
+                    <th>Precio Unit.</th>
+                    <th>Subtotal</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in productos %}
+                <tr>
+                    <td>{{ item.venta.fecha|date:"d/m/Y" }}</td>
+                    <td>{{ item.producto.nombre }}</td>
+                    <td>{{ item.cantidad }}</td>
+                    <td>${{ item.producto.precio }}</td>
+                    <td>${{ item.subtotal }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <h4 class="text-end">Total pendiente: ${{ total_pendiente }}</h4>
+
+        <div class="mt-3 d-flex justify-content-between">
+            <a href="{% url 'ventas' %}" class="btn btn-secondary">Volver</a>
+            <form method="POST" action="{% url 'procesar_pago_cuenta_corriente' cliente.id %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-success btn-lg">Pagar todo</button>
+            <form method="POST" action="{% url 'procesar_pago_cuenta_corriente' cliente.id %}">
+    {% csrf_token %}
+    
+</form>
+
+        </div>
+    {% else %}
+        <div class="alert alert-success mt-3">
+            Este cliente no tiene deudas pendientes.
+        </div>
+        <a href="{% url 'ventas' %}" class="btn btn-primary mt-2">Volver</a>
+    {% endif %}
+</div>
+{% endblock %}
+

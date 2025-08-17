@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4 p-4" style="background:#f8f9fa; border-radius:10px; box-shadow:0 4px 12px rgba(0,0,0,0.1);">
+
+    <!-- Alert de mensajes -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} mt-3" role="alert">
+                {{ message|safe }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <h2 class="text-center mb-4">Saldos de Clientes (Cuenta Corriente)</h2>
+
+    <!-- Tabla de saldos -->
+    <table class="table table-bordered table-hover">
+        <thead class="table-dark">
+            <tr>
+                <th>Cliente</th>
+                <th>Saldo</th>
+                <th>Acción</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in saldos_clientes %}
+            <tr>
+                <td>{{ c.nombre }}</td>
+                <td>${{ c.saldo_cc|default:0 }}</td>
+                <td>
+                    {% if c.saldo_cc and c.saldo_cc > 0 %}
+                        <a href="{% url 'saldos_clientes' %}?pagar={{ c.id }}" class="btn btn-success btn-sm">Pagar</a>
+                    {% else %}
+                        <span class="text-muted">Sin deuda</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Simulación de pago -->
+    {% if cliente_simulado %}
+    <div class="alert alert-info mt-3">
+        <strong>Simulación de pago para {{ cliente_simulado.nombre }}:</strong><br>
+        Saldo original: ${{ cliente_simulado.saldo_cc }}<br>
+        Saldo después del pago: ${{ saldo_simulado|default:0 }}
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+

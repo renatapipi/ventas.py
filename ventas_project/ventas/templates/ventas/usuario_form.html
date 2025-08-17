@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Editar Usuario{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <form method="post" class="p-4 bg-white rounded shadow mx-auto" style="max-width:500px; border-left:5px solid #000000ff;">
+        {% csrf_token %}
+        <h3 class="mb-4 text-center" style="color:#03030;">Editar Usuario</h3>
+
+        {% for field in form %}
+            <div class="mb-3">
+                {{ field.label_tag }}
+                {{ field }} <!-- Las clases vienen del forms.py -->
+
+                {% if field.help_text %}
+                    <small class="form-text text-muted">{{ field.help_text }}</small>
+                {% endif %}
+
+                {% for error in field.errors %}
+                    <div class="text-danger">{{ error }}</div>
+                {% endfor %}
+            </div>
+        {% endfor %}
+
+        <div class="d-grid gap-2 mt-3">
+            <button type="submit" class="btn btn-primary btn-lg">Guardar</button>
+            <a href="{% url 'usuarios' %}" class="btn btn-secondary btn-lg">Cancelar</a>
+        </div>
+    </form>
+</div>
+
+<style>
+.form-control, .form-select {
+    border-radius: 8px;
+    border: 1px solid #ced4da;
+    padding: 10px;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #020202ff;
+    box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
+    outline: none;
+}
+
+.btn-primary {
+    background-color: #325597ff;
+    border: none;
+}
+
+.btn-primary:hover { background-color: #030303ff; }
+.btn-secondary { background-color: #6c757d; border: none; }
+.btn-secondary:hover { background-color: #495057; }
+</style>
+{% endblock %}
+
+
+
+
+
+
+

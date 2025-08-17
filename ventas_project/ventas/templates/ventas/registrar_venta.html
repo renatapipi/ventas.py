@@ -1,0 +1,165 @@
+{% extends 'base.html' %}
+
+{% block title %}Registrar Venta - Sistema de Ventas{% endblock %}
+
+{% block content %}
+<div class="container mt-4" style="background: #f8f9fa; padding: 25px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+    <h2 class="text-center mb-4" style="color:#343a40;">REGISTRAR VENTAS</h2>
+
+    <!-- Mensajes -->
+    {% if messages %}
+      {% for message in messages %}
+        <div class="alert alert-success" style="border-radius:5px;">{{ message|safe }}</div>
+      {% endfor %}
+    {% endif %}
+
+    <!-- Búsqueda de productos -->
+    <form method="GET" class="mb-3 d-flex gap-2">
+        <input type="text" name="q" placeholder="Buscar producto..." value="{{ query }}" class="form-control" style="flex:1;">
+        <button type="submit" class="btn btn-primary">Buscar</button>
+    </form>
+
+    <!-- Formulario de venta -->
+    <form id="venta-form" method="POST">
+        {% csrf_token %}
+        
+        <!-- Cliente -->
+        <div class="mb-3">
+            <label class="form-label fw-bold">Cliente</label>
+            <select name="cliente" class="form-control">
+                <option value="">-- Sin cliente --</option>
+                {% for c in clientes %}
+                    <option value="{{ c.id }}" {% if cliente_seleccionado and cliente_seleccionado.id == c.id %}selected{% endif %}>{{ c.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Tipo de Venta -->
+        {% if cliente_seleccionado %}
+            <input type="hidden" name="pagada" value="true">
+        {% else %}
+            <div class="mb-3">
+                <label class="form-label fw-bold">Tipo de Venta</label>
+                <select name="pagada" class="form-control">
+                    <option value="true" {% if pagada_por_defecto == 'true' %}selected{% endif %}>Pagada al contado</option>
+                    <option value="false" {% if pagada_por_defecto == 'false' %}selected{% endif %}>Cuenta Corriente</option>
+                </select>
+            </div>
+        {% endif %}
+
+        <!-- Descuento y Recargo -->
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label class="form-label fw-bold">Descuento %</label>
+                <input type="number" name="descuento" value="0" min="0" max="100" class="form-control">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label fw-bold">Recargo %</label>
+                <input type="number" name="recargo" value="0" min="0" max="100" class="form-control">
+            </div>
+        </div>
+
+        <!-- Nota -->
+        <div class="mb-3">
+            <label class="form-label fw-bold">Nota (opcional)</label>
+            <textarea name="nota" class="form-control" rows="2" placeholder="Escribe alguna observación..."></textarea>
+        </div>
+
+        <!-- Resultados de productos -->
+        <h4 style="margin-top:30px; color:#495057;">Resultados</h4>
+        <div id="resultados-productos">
+           {% for p in productos|slice:":5" %}
+            <div class="producto row mb-2 p-2 border rounded align-items-center" 
+                 style="background:#ffffff;"
+                 data-id="{{ p.id }}" 
+                 data-nombre="{{ p.nombre }}" 
+                 data-precio="{{ p.precio }}">
+                 
+                <div class="col-md-6">{{ p.nombre }} - ${{ p.precio }} ({{ p.marca }})</div>
+                <div class="col-md-3">
+                    <input type="number" class="cantidad form-control" value="1" min="1">
+                </div>
+                <div class="col-md-3 text-end">
+                    <button type="button" class="btn btn-success agregar-producto">Agregar</button>
+                </div>
+            </div>
+           {% empty %}
+                <p>No se encontraron productos.</p>
+           {% endfor %}
+        </div>
+
+        <!-- Carrito -->
+        <h4 style="margin-top:30px; color:#495057;">Carrito</h4>
+        <table class="table table-striped table-hover" id="carrito">
+            <thead class="table-dark">
+                <tr>
+                    <th>Producto</th>
+                    <th>Cantidad</th>
+                    <th>Precio</th>
+                    <th>Subtotal</th>
+                    <th>Quitar</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <h5 class="text-end" style="margin-top:15px;">Total: $<span id="total">0.00</span></h5>
+
+        <div class="d-flex justify-content-between mt-3">
+            <button type="submit" class="btn btn-primary btn-lg">Guardar Venta</button>
+            <a href="{% url 'resumen_ventas' %}" class="btn btn-secondary btn-lg">Cancelar</a>
+        </div>
+    </form>
+</div>
+
+<script>
+const carrito = [];
+function actualizarCarrito() {
+    const tbody = document.querySelector('#carrito tbody');
+    tbody.innerHTML = '';
+    let total = 0;
+    carrito.forEach((item, index) => {
+        const subtotal = item.precio * item.cantidad;
+        total += subtotal;
+        tbody.innerHTML += `
+            <tr>
+                <td>${item.nombre}<input type="hidden" name="producto_${item.id}" value="${item.id}"></td>
+                <td><input type="hidden" name="cantidad_${item.id}" value="${item.cantidad}">${item.cantidad}</td>
+                <td>${item.precio.toFixed(2)}</td>
+                <td>${subtotal.toFixed(2)}</td>
+                <td><button type="button" class="btn btn-danger btn-sm" onclick="quitarProducto(${index})">Quitar</button></td>
+            </tr>
+        `;
+    });
+    document.getElementById('total').innerText = total.toFixed(2);
+}
+
+function quitarProducto(index) {
+    carrito.splice(index, 1);
+    actualizarCarrito();
+}
+
+document.querySelectorAll('.agregar-producto').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const row = btn.closest('.producto');
+        const id = row.dataset.id;
+        const nombre = row.dataset.nombre;
+        const precio = parseFloat(row.dataset.precio);
+        const cantidad = parseInt(row.querySelector('.cantidad').value);
+        carrito.push({id, nombre, precio, cantidad});
+        actualizarCarrito();
+    });
+});
+</script>
+{% endblock %}
+
+
+
+
+
+
+
+
+
+
+

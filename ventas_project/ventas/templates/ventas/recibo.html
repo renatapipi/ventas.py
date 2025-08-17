@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Recibo</title>
+    
+    <style>
+        body { font-family: Arial, sans-serif; font-size: 12px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #000; padding: 5px; text-align: left; }
+        h2, h4 { margin: 0; padding: 0; }
+    </style>
+</head>
+<body>
+    <h2>Recibo ONIX STORE #{{ venta.id }}</h2>
+    <p><strong>Fecha:</strong> {{ venta.fecha|date:"d/m/Y" }} 
+       <strong>Hora:</strong> {{ venta.fecha|time:"H:i" }}</p>
+    <p><strong>Vendedor:</strong> {{ venta.vendedor.username }}</p>
+    {% if venta.cliente %}
+        <p><strong>Cliente:</strong> {{ venta.cliente.nombre }}</p>
+    {% endif %}
+    {% if venta.nota %}
+        <p><strong>Nota:</strong> {{ venta.nota }}</p>
+    {% endif %}
+    <p><strong>Tipo de Venta:</strong>
+        {% if venta.pagada %}Al contado{% else %}Cuenta Corriente - Monto adeudado: ${{ venta.total }}{% endif %}
+    </p>
+
+    <h4>Detalle de Productos</h4>
+    <table>
+        <thead>
+            <tr>
+                <th>Producto</th>
+                
+                
+                <th>Cantidad</th>
+                <th>Precio Unitario</th>
+                <th>Subtotal</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>{{ item.producto.nombre }}</td>
+                
+                
+                <td>{{ item.cantidad }}</td>
+                <td>${{ item.producto.precio }}</td>
+                <td>${{ item.subtotal }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h4>Total: ${{ venta.total }}</h4>
+</body>
+</html>
+
+
+

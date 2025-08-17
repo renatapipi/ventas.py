@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5" style="max-width:500px; background: linear-gradient(135deg, #ffffff, #e6e6e6); 
+                                   padding: 30px; border-radius: 15px; box-shadow: 0 6px 15px rgba(0,0,0,0.2);">
+    <h2 style="text-align:center; font-weight:700; color:#222; margin-bottom:30px;">
+        {% if form.instance.pk %}Editar Producto{% else %}Nuevo Producto{% endif %}
+    </h2>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-info" style="border-radius:8px; text-align:center;">{{ message|safe }}</div>
+        {% endfor %}
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="mb-3">
+            {{ form.as_p }}
+        </div>
+        <div class="d-flex justify-content-between mt-4">
+            <button type="submit" class="btn btn-success flex-fill me-2" style="font-weight:bold; transition:0.3s;"
+                    onmouseover="this.style.backgroundColor='#28a745';" onmouseout="this.style.backgroundColor='#218838';">
+                Guardar
+            </button>
+            <a href="{% url 'productos' %}" class="btn btn-danger flex-fill ms-2" style="font-weight:bold; transition:0.3s;"
+               onmouseover="this.style.backgroundColor='#dc3545';" onmouseout="this.style.backgroundColor='#c82333';">
+               Cancelar
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+

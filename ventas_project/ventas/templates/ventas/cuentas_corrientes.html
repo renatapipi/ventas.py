@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Cuenta Corriente - {{ cliente.nombre }}</h2>
+
+    <h5 class="mb-3">
+        Deuda Total:
+        {% if deuda_total > 0 %}
+            <span class="text-danger">${{ deuda_total }}</span>
+        {% else %}
+            <span class="text-success">Sin deuda</span>
+        {% endif %}
+    </h5>
+
+    <a href="{% url 'registrar_pago' cliente.id %}" class="btn btn-primary mb-3">Registrar Pago</a>
+
+    <table class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th>Fecha</th>
+                <th>Tipo</th>
+                <th>Monto</th>
+                <th>Venta Asociada</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for m in movimientos %}
+            <tr>
+                <td>{{ m.fecha|date:"Y-m-d H:i" }}</td>
+                <td>
+                    {% if m.tipo == 'deuda' %}
+                        <span class="badge bg-warning">Deuda</span>
+                    {% else %}
+                        <span class="badge bg-success">Pago</span>
+                    {% endif %}
+                </td>
+                <td>${{ m.monto }}</td>
+                <td>
+                    {% if m.venta %}
+                        <a href="{% url 'detalle_venta' m.venta.id %}">Venta #{{ m.venta.id }}</a>
+                    {% else %}
+                        ---
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" class="text-center">No hay movimientos en la cuenta corriente.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+

@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Listado de Ventas</h2>
+    <a href="{% url 'registrar_venta' %}" class="btn btn-primary mb-3">Nueva Venta</a>
+
+    <table class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Fecha</th>
+                <th>Vendedor</th>
+                <th>Cliente</th>
+                <th>Total</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for v in ventas %}
+            <tr>
+                <td>{{ v.id }}</td>
+                <td>{{ v.fecha|date:"Y-m-d H:i" }}</td>
+                <td>{{ v.vendedor.username }}</td>
+                <td>{{ v.cliente.nombre if v.cliente else "Sin cliente" }}</td>
+                <td>${{ v.total }}</td>
+                <td>
+                    {% if v.pagada %}
+                        <span class="badge bg-success">Pagada</span>
+                    {% else %}
+                        <span class="badge bg-warning">Cuenta Corriente</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{% url 'detalle_venta' v.id %}" class="btn btn-info btn-sm">Ver</a>
+                    {% if not v.pagada and v.cliente %}
+                        <a href="{% url 'registrar_pago' v.cliente.id %}" class="btn btn-success btn-sm">Registrar Pago</a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" class="text-center">No hay ventas registradas.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
