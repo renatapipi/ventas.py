@@ -14,6 +14,7 @@ urlpatterns = [
     path('productos/nuevo/', views.producto_nuevo, name='producto_nuevo'),
     path('productos/editar/<int:pk>/', views.producto_editar, name='producto_editar'),
     path('productos/borrar/<int:pk>/', views.producto_borrar, name='producto_borrar'),
+    path('eliminar/', views.eliminar_ventas, name='eliminar_ventas'),
     # Clientes
     path('clientes/', views.clientes, name='clientes'),
     path('clientes/nuevo/', views.cliente_nuevo, name='cliente_nuevo'),
@@ -27,6 +28,7 @@ urlpatterns = [
     # Cuentas corrientes
     path('cuentas_corrientes/', views.cuentas_corrientes, name='cuentas_corrientes'),
     path('cuentas_corrientes/<int:cliente_id>/', views.cuentas_corrientes, name='cuentas_corrientes_detalle'),
+    path('cuentas_corrientes/<int:cliente_id>/pago/', views.registrar_pago, name='registrar_pago'),
     path('pagar/<int:cliente_id>/', views.pagar_cuenta_corriente_memoria, name='pagar_cuenta_corriente'),
     path('procesar_pago_cuenta_corriente/<int:cliente_id>/', views.procesar_pago_cuenta_corriente, name='procesar_pago_cuenta_corriente'),
     # Logout

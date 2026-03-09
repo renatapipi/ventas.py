@@ -1,78 +1,100 @@
 {% extends "base.html" %}
+
 {% block content %}
 <div class="container mt-4 p-4" style="background:#f8f9fa; border-radius:10px; box-shadow:0 4px 12px rgba(0,0,0,0.1);">
+    <h2 class="text-center mb-4">Resumen de Ventas</h2>
 
-<h2 class="text-center mb-4">Resumen de Ventas</h2>
+    <!-- Filtros -->
+    <form method="GET" class="mb-4 row g-3">
+        <div class="col-md-3">
+            <label>Fecha inicio</label>
+            <input type="date" name="fecha_inicio" value="{{ filtros.fecha_inicio }}" class="form-control">
+        </div>
+        <div class="col-md-3">
+            <label>Fecha fin</label>
+            <input type="date" name="fecha_fin" value="{{ filtros.fecha_fin }}" class="form-control">
+        </div>
+        <div class="col-md-3">
+            <label>Cliente</label>
+            <select name="cliente" class="form-control">
+                <option value="">-- Todos --</option>
+                {% for c in clientes %}
+                    <option value="{{ c.id }}" {% if filtros.cliente_id == c.id|stringformat:"s" %}selected{% endif %}>
+                        {{ c.nombre }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label>Tipo de Venta</label>
+            <select name="tipo" class="form-control">
+                <option value="">Todos</option>
+                <option value="contado" {% if filtros.tipo == 'contado' %}selected{% endif %}>Al contado</option>
+                <option value="cta_corriente" {% if filtros.tipo == 'cta_corriente' %}selected{% endif %}>Cuenta Corriente</option>
+            </select>
+        </div>
+        <div class="col-md-12 mt-2">
+            <button type="submit" class="btn btn-primary">Filtrar</button>
+        </div>
+    </form>
 
-<!-- Filtros -->
-<form method="GET" class="mb-4 row g-3">
-    <div class="col-md-3">
-        <label>Fecha inicio</label>
-        <input type="date" name="fecha_inicio" value="{{ filtros.fecha_inicio }}" class="form-control">
+    <!-- Totales -->
+    <div class="mb-4">
+        <p><strong>Total Ventas:</strong> ${{ total_ventas }}</p>
+        <p><strong>Total Contado:</strong> ${{ total_contado }}</p>
+        <p><strong>Total Cuenta Corriente:</strong> ${{ total_cta_corriente }}</p>
     </div>
-    <div class="col-md-3">
-        <label>Fecha fin</label>
-        <input type="date" name="fecha_fin" value="{{ filtros.fecha_fin }}" class="form-control">
-    </div>
-    <div class="col-md-3">
-        <label>Cliente</label>
-        <select name="cliente" class="form-control">
-            <option value="">-- Todos --</option>
-            {% for c in clientes %}
-                <option value="{{ c.id }}" {% if filtros.cliente_id == c.id|stringformat:"s" %}selected{% endif %}>{{ c.nombre }}</option>
-            {% endfor %}
-        </select>
-    </div>
-    <div class="col-md-3">
-        <label>Tipo de Venta</label>
-        <select name="tipo" class="form-control">
-            <option value="">Todos</option>
-            <option value="contado" {% if filtros.tipo == 'contado' %}selected{% endif %}>Al contado</option>
-            <option value="cta_corriente" {% if filtros.tipo == 'cta_corriente' %}selected{% endif %}>Cuenta Corriente</option>
-        </select>
-    </div>
-    <div class="col-md-12 mt-2">
-        <button type="submit" class="btn btn-primary">Filtrar</button>
-    </div>
-</form>
 
-<!-- Totales -->
-<div class="mb-4">
-    <p><strong>Total Ventas:</strong> ${{ total_ventas }}</p>
-    <p><strong>Total Contado:</strong> ${{ total_contado }}</p>
-    <p><strong>Total Cuenta Corriente:</strong> ${{ total_cta_corriente }}</p>
+    <!-- Tabla de ventas -->
+    <form method="POST" action="{% url 'eliminar_ventas' %}">
+        {% csrf_token %}
+        <table class="table table-striped table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th><input type="checkbox" id="select_all"></th>
+                    <th>ID</th>
+                    <th>Fecha</th>
+                    <th>Cliente</th>
+                    <th>Vendedor</th>
+                    <th>Total</th>
+                    <th>Tipo</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for v in ventas %}
+                    <tr>
+                        <td><input type="checkbox" name="ventas_a_eliminar" value="{{ v.id }}"></td>
+                        <td>{{ v.id }}</td>
+                        <td>{{ v.fecha|date:"d/m/Y H:i" }}</td>
+                        <td>{% if v.cliente %}{{ v.cliente.nombre }}{% else %}-{% endif %}</td>
+                        <td>{{ v.vendedor.username }}</td>
+                        <td>${{ v.total }}</td>
+                        <td>{% if v.pagada %}Al contado{% else %}Cuenta Corriente{% endif %}</td>
+                        <td>
+                            <a href="{% url 'recibo_venta' v.id %}" class="btn btn-info btn-sm" target="_blank">
+                                Recibo
+                            </a>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center">No hay ventas.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <button type="submit" class="btn btn-danger">Eliminar seleccionados</button>
+    </form>
 </div>
 
-<!-- Tabla de ventas -->
-<table class="table table-striped table-hover">
-    <thead class="table-dark">
-        <tr>
-            <th>ID</th><th>Fecha</th><th>Cliente</th><th>Vendedor</th><th>Total</th><th>Tipo</th><th>Acción</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for v in ventas %}
-        <tr>
-            <td>{{ v.id }}</td>
-            <td>{{ v.fecha|date:"d/m/Y H:i" }}</td>
-            <td>{% if v.cliente %}{{ v.cliente.nombre }}{% else %}-{% endif %}</td>
-            <td>{{ v.vendedor.username }}</td>
-            <td>${{ v.total }}</td>
-            <td>{% if v.pagada %}Al contado{% else %}Cuenta Corriente{% endif %}</td>
-            <td><a href="{% url 'recibo_venta' v.id %}" class="btn btn-info btn-sm" target="_blank">Recibo</a></td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="7" class="text-center">No hay ventas.</td></tr>
-        {% endfor %}
-    </tbody>
-</table>
-
-
-
-</div>
+<script>
+document.getElementById('select_all').addEventListener('change', function() {
+    let checkboxes = document.querySelectorAll('input[name="ventas_a_eliminar"]');
+    checkboxes.forEach(cb => cb.checked = this.checked);
+});
+</script>
 {% endblock %}
-
-
 
 
 

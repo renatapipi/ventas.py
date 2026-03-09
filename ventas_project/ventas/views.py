@@ -69,7 +69,7 @@ from .models import Usuario
 @login_required
 def usuario_borrar(request, pk):
     usuario = get_object_or_404(Usuario, pk=pk)
-    
+
     if request.method == 'POST':
         usuario.delete()
         return redirect('usuarios')  # Volver a la lista de usuarios
@@ -98,12 +98,12 @@ def usuario_toggle(request, usuario_id):
 
 
 from decimal import Decimal
-from django.db import transaction
-from django.contrib import messages
 from django.shortcuts import render, redirect
-from django.urls import reverse
+from django.contrib import messages
+from django.db import transaction
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
+from django.urls import reverse
 from .models import Cliente, Producto, Venta, ItemVenta, MovimientoCuentaCorriente
 
 @login_required
@@ -135,44 +135,53 @@ def registrar_venta(request):
 
         # Crear venta con el usuario logueado como vendedor
         nueva_venta = Venta.objects.create(
-            vendedor=request.user,  # tu modelo Usuario
+            vendedor=request.user,
             cliente=cliente,
             pagada=pagada,
             nota=nota
         )
 
         total_venta = Decimal('0.00')
+        productos_encontrados = False  # bandera para validar carrito vacío
 
         # Agregar items de venta
         for key in request.POST:
             if key.startswith('producto_'):
-             producto_id = request.POST.get(key)
-             cantidad = int(request.POST.get(f'cantidad_{producto_id}', 1))
-             prod = Producto.objects.get(pk=producto_id)
+                productos_encontrados = True
+                producto_id = request.POST.get(key)
+                cantidad = int(request.POST.get(f'cantidad_{producto_id}', 1))
+                prod = Producto.objects.get(pk=producto_id)
 
-        # Validar stock antes de restar
-        if cantidad > prod.stock:
-            messages.error(
-                request,
-                f"No hay suficiente stock de {prod.nombre} (disponible: {prod.stock})"
-            )
+                # Validar stock antes de restar
+                if cantidad > prod.stock:
+                    messages.error(
+                        request,
+                        f"No hay suficiente stock de {prod.nombre} (disponible: {prod.stock})"
+                    )
+                    nueva_venta.delete()  # eliminar venta vacía
+                    return redirect('registrar_venta')
+
+                subtotal = prod.precio * cantidad
+
+                # Crear ItemVenta y descontar stock
+                ItemVenta.objects.create(
+                    venta=nueva_venta,
+                    producto=prod,
+                    cantidad=cantidad,
+                    subtotal=subtotal
+                )
+
+                # Descontar stock una sola vez
+                prod.stock -= cantidad
+                prod.save()
+
+                total_venta += subtotal
+
+        # Validar carrito vacío
+        if not productos_encontrados:
+            messages.error(request, "Debe agregar al menos un producto al carrito.")
+            nueva_venta.delete()
             return redirect('registrar_venta')
-
-        subtotal = prod.precio * cantidad
-
-        # Crear ItemVenta y descontar stock
-        ItemVenta.objects.create(
-            venta=nueva_venta,
-            producto=prod,
-            cantidad=cantidad,
-            subtotal=subtotal
-        )
-
-        # Asegurarse que stock nunca sea negativo
-        prod.stock = max(prod.stock - cantidad, 0)
-        prod.save()
-
-        total_venta += subtotal
 
         # Aplicar descuento y recargo
         if descuento_porcentaje > 0:
@@ -210,11 +219,6 @@ def registrar_venta(request):
         'query': query
     })
 
-
-def get_template(template_name):
-    raise NotImplementedError
-
-
 from django.template.loader import get_template
 from django.http import HttpResponse
 from xhtml2pdf import pisa
@@ -244,19 +248,19 @@ def recibo_venta(request, venta_id):
     return response
 
 @login_required
-def cuentas_corrientes(request, cliente_id):
+def cuentas_corrientes(request, cliente_id=None):
+    if cliente_id is None:
+        clientes = Cliente.objects.all()
+        return render(request, 'ventas/saldos_clientes.html', {'saldos_clientes': clientes})
+
     cliente = get_object_or_404(Cliente, pk=cliente_id)
     movimientos = MovimientoCuentaCorriente.objects.filter(cliente=cliente).order_by('-fecha')
-
-    deuda_total = sum(
-        m.monto if m.tipo == 'deuda' else -m.monto
-        for m in movimientos
-    )
+    deuda_total = sum(m.monto if m.tipo == 'deuda' else -m.monto for m in movimientos)
 
     return render(request, 'ventas/cuentas_corrientes.html', {
         'cliente': cliente,
         'movimientos': movimientos,
-        'deuda_total': deuda_total
+        'deuda_total': deuda_total,
     })
 
 @login_required
@@ -269,14 +273,24 @@ def detalle_venta(request, venta_id):
 def registrar_pago(request, cliente_id):
     cliente = get_object_or_404(Cliente, pk=cliente_id)
     if request.method == 'POST':
-        monto = Decimal(request.POST.get('monto'))
-        MovimientoCuentaCorriente.objects.create(
-            cliente=cliente,
-            monto=monto,
-            tipo='pago'
-        )
-        return redirect('cuenta_corriente', cliente_id=cliente.id)
-    
+        monto = Decimal(request.POST.get('monto', '0'))
+    else:
+        monto = cliente.saldo_cc
+
+    if monto <= 0:
+        messages.warning(request, f"El cliente {cliente.nombre} no tiene deuda pendiente.")
+        return redirect('cuentas_corrientes_detalle', cliente_id=cliente.id)
+
+    MovimientoCuentaCorriente.objects.create(
+        cliente=cliente,
+        monto=monto,
+        tipo='pago'
+    )
+    cliente.saldo_cc = max(cliente.saldo_cc - monto, Decimal('0.00'))
+    cliente.save()
+    messages.success(request, f"Pago registrado para {cliente.nombre}: ${monto:.2f}")
+    return redirect('cuentas_corrientes_detalle', cliente_id=cliente.id)
+
 
 
 @login_required
@@ -351,11 +365,6 @@ def producto_editar(request, pk):
         form = ProductoForm(instance=producto)
     return render(request, 'ventas/producto_form.html', {'form': form})
 
-@login_required
-def cuentas_corrientes(request):
-    return render(request, 'ventas/cuentas_corrientes.html')
-
-
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect, get_object_or_404
 
@@ -375,9 +384,9 @@ from .forms import UsuarioCreacionForm
 
 @login_required
 def usuario_nuevo(request):
-    if request.user.rol != 'admin':
-        return redirect('resumen_ventas')  # evitar que vendedores creen usuarios
-    
+    if not request.user.is_superuser and request.user.rol != 'admin':
+     return redirect('resumen_ventas')  # ahora está correctamente indentado
+
     if request.method == 'POST':
         form = UsuarioCreacionForm(request.POST)
         if form.is_valid():
@@ -394,10 +403,14 @@ def usuario_nuevo(request):
 
 
 
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render, redirect
+from .forms import UsuarioCreacionForm
 @login_required
 def usuario_editar(request, pk):
-    if request.user.rol != 'admin':
-        return redirect('home')
+    if not request.user.is_superuser and request.user.rol != 'admin':
+     return redirect('resumen_ventas')
 
     usuario = get_object_or_404(Usuario, pk=pk)
     if request.method == 'POST':
@@ -410,83 +423,66 @@ def usuario_editar(request, pk):
     return render(request, 'ventas/usuario_form.html', {'form': form})
 
 from django.shortcuts import render
-from django.core.paginator import Paginator
-from django.db.models import Sum, Q
+from django.db.models import Sum
 from django.contrib.auth.decorators import login_required
+from datetime import datetime
 from .models import Venta, Cliente
 
-from django.shortcuts import get_object_or_404, render
-from django.db.models import Sum, Q
-from .models import Venta, Cliente, MovimientoCuentaCorriente
-
-@login_required
+@login_required(login_url='login')
 def resumen_ventas(request):
-    ventas_list = Venta.objects.all().order_by('-fecha')
+
+    ventas = Venta.objects.all().order_by('-fecha')
+
+    fecha_inicio = request.GET.get('fecha_inicio')
+    fecha_fin = request.GET.get('fecha_fin')
+    cliente_id = request.GET.get('cliente')
+    tipo = request.GET.get('tipo')
+
+    # FILTRO FECHA INICIO
+    if fecha_inicio:
+        fecha_inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d")
+        ventas = ventas.filter(fecha__gte=fecha_inicio)
+
+    # FILTRO FECHA FIN
+    if fecha_fin:
+        fecha_fin = datetime.strptime(fecha_fin, "%Y-%m-%d")
+        fecha_fin = fecha_fin.replace(hour=23, minute=59, second=59)
+        ventas = ventas.filter(fecha__lte=fecha_fin)
+
+    # FILTRO CLIENTE
+    if cliente_id:
+        ventas = ventas.filter(cliente_id=cliente_id)
+
+    # FILTRO TIPO
+    if tipo == "contado":
+        ventas = ventas.filter(pagada=True)
+
+    elif tipo == "cta_corriente":
+        ventas = ventas.filter(pagada=False)
+
+    filtros = {
+        'fecha_inicio': request.GET.get('fecha_inicio', ''),
+        'fecha_fin': request.GET.get('fecha_fin', ''),
+        'cliente_id': cliente_id or '',
+        'tipo': tipo or '',
+    }
+
+    total_ventas = ventas.aggregate(total=Sum('total'))['total'] or 0
+    total_contado = ventas.filter(pagada=True).aggregate(total=Sum('total'))['total'] or 0
+    total_cta_corriente = ventas.filter(pagada=False).aggregate(total=Sum('total'))['total'] or 0
+
     clientes = Cliente.objects.all()
 
-    # Filtros
-    fecha_inicio = request.GET.get('fecha_inicio', '')
-    fecha_fin = request.GET.get('fecha_fin', '')
-    cliente_id = request.GET.get('cliente', '')
-    tipo = request.GET.get('tipo', '')
-
-    if fecha_inicio:
-        ventas_list = ventas_list.filter(fecha__date__gte=fecha_inicio)
-    if fecha_fin:
-        ventas_list = ventas_list.filter(fecha__date__lte=fecha_fin)
-    if cliente_id:
-        ventas_list = ventas_list.filter(cliente__id=cliente_id)
-    if tipo == 'contado':
-        ventas_list = ventas_list.filter(pagada=True)
-    elif tipo == 'cta_corriente':
-        ventas_list = ventas_list.filter(pagada=False)
-
-    # Totales
-    total_ventas = ventas_list.aggregate(total=Sum('total'))['total'] or 0
-    total_contado = ventas_list.filter(pagada=True).aggregate(total=Sum('total'))['total'] or 0
-    total_cta_corriente = ventas_list.filter(pagada=False).aggregate(total=Sum('total'))['total'] or 0
-
-    # Tomar últimas 20 ventas
-    ventas = ventas_list[:20]
-
-    # Saldos clientes
-    saldos_clientes = Cliente.objects.annotate(
-        saldo_total=Sum(
-            'movimientocuentacorriente__monto',
-            filter=Q(movimientocuentacorriente__tipo='deuda')
-        )
-    )
-
-    # Simulación de pago en memoria
-    simular_pago_id = request.GET.get('simular_pago')
-    cliente_simulado = None
-    saldo_simulado = None
-    if simular_pago_id:
-        cliente_simulado = get_object_or_404(Cliente, pk=simular_pago_id)
-        deuda = cliente_simulado.movimientocuentacorriente.filter(tipo='deuda').aggregate(
-            total=Sum('monto')
-        )['total'] or 0
-        if deuda > 0:
-            saldo_simulado = 0
-        else:
-            saldo_simulado = cliente_simulado.saldo_cc
-
-    return render(request, 'ventas/resumen_ventas.html', {
+    context = {
         'ventas': ventas,
-        'clientes': clientes,
         'total_ventas': total_ventas,
         'total_contado': total_contado,
         'total_cta_corriente': total_cta_corriente,
-        'saldos_clientes': saldos_clientes,
-        'filtros': {
-            'fecha_inicio': fecha_inicio,
-            'fecha_fin': fecha_fin,
-            'cliente_id': cliente_id,
-            'tipo': tipo,
-        },
-        'cliente_simulado': cliente_simulado,
-        'saldo_simulado': saldo_simulado,
-    })
+        'clientes': clientes,
+        'filtros': filtros,
+    }
+
+    return render(request, 'ventas/resumen_ventas.html', context)
 
 
 
@@ -506,10 +502,11 @@ def pagar_cuenta_corriente_memoria(request, cliente_id):
         return redirect('saldos_clientes')
 
     # Registrar el pago en Movimientos
+    monto_pagado = cliente.saldo_cc
     MovimientoCuentaCorriente.objects.create(
         cliente=cliente,
         venta=None,  # Si no corresponde a una venta específica
-        monto=cliente.saldo_cc,
+        monto=monto_pagado,
         tipo='pago'
     )
 
@@ -517,7 +514,7 @@ def pagar_cuenta_corriente_memoria(request, cliente_id):
     cliente.saldo_cc = Decimal('0.00')
     cliente.save()
 
-    messages.success(request, f"Se registró el pago de ${cliente.saldo_cc} para {cliente.nombre}.")
+    messages.success(request, f"Se registró el pago de ${monto_pagado} para {cliente.nombre}.")
     return redirect('saldos_clientes')
 
 
@@ -653,7 +650,7 @@ from .models import Producto
 
 def producto_borrar(request, pk):
     producto = get_object_or_404(Producto, pk=pk)
-    
+
     producto.delete()  # Esto elimina el producto completamente de la DB
 
     messages.success(request, f'Producto "{producto.nombre}" ha sido eliminado.')
@@ -665,31 +662,39 @@ from django.db.models import Sum, Count, F
 from .models import Venta, ItemVenta, Producto, Usuario
 from decimal import Decimal
 
+
+from django.shortcuts import render
+from django.db.models import Sum, F
+from .models import Venta, ItemVenta, Producto, Usuario
+from decimal import Decimal
+
 def estadisticas_ventas(request):
-    # Obtener parámetro de filtro por vendedor
+    # Parámetro de filtro por vendedor
     vendedor_id = request.GET.get('vendedor', None)
 
-    # Configurar porcentaje de comisión (puede venir de un formulario o fijo)
-    comision_porcentaje = float(request.GET.get('comision', 0))  # ejemplo simple
+    # Porcentaje de comisión
+    comision_str = request.GET.get('comision', '0')
+    try:
+        comision_porcentaje = float(comision_str) if comision_str else 0
+    except ValueError:
+        comision_porcentaje = 0
 
     # Filtrar ventas por vendedor si se indicó
     ventas_qs = Venta.objects.all()
     if vendedor_id:
         ventas_qs = ventas_qs.filter(vendedor_id=vendedor_id)
 
-    # Ganancia total (suma de totales)
-    total_ganancia = ventas_qs.aggregate(total=Sum('total'))['total'] or 0
+    # Ganancia total (suma de totales de ventas)
+    total_ganancia = int(ventas_qs.aggregate(total=Sum('total'))['total'] or 0)
 
     # Ventas por vendedor
-    vendedores = Usuario.objects.filter(rol='vendedor')
+    vendedores = Usuario.objects.all()
     ventas_por_vendedor = []
     for v in vendedores:
-        if vendedor_id and str(v.id) != vendedor_id:
-            continue
         ventas_v = ventas_qs.filter(vendedor=v)
-        total_v = ventas_v.aggregate(total=Sum('total'))['total'] or 0
+        total_v = int(ventas_v.aggregate(total=Sum('total'))['total'] or 0)
         cant_v = ventas_v.count()
-        comision = round(float(total_v) * comision_porcentaje / 100, 2)
+        comision = int(total_v * comision_porcentaje / 100)
         ventas_por_vendedor.append({
             'id': v.id,
             'username': v.username,
@@ -701,16 +706,32 @@ def estadisticas_ventas(request):
     # Top 5 productos más vendidos
     productos_mas_vendidos = (
         ItemVenta.objects
-        .values('producto__nombre')
+        .values('producto__nombre', 'producto__precio', 'producto__costo')
         .annotate(
             cantidad_total=Sum('cantidad'),
-            total_vendido=Sum(F('subtotal'))
+            total_vendido=Sum(F('subtotal')),
+            ganancia_real=Sum(F('cantidad') * (F('producto__precio') - F('producto__costo')))
         )
         .order_by('-cantidad_total')[:5]
     )
 
+    # Global de ventas por producto
+    productos_globales = (
+        ItemVenta.objects
+        .values('producto__nombre', 'producto__precio', 'producto__costo')
+        .annotate(
+            cantidad_total=Sum('cantidad'),
+            total_vendido=Sum(F('subtotal')),
+            ganancia_real=Sum(F('cantidad') * (F('producto__precio') - F('producto__costo')))
+        )
+        .order_by('-cantidad_total')
+    )
+
     # Productos con bajo stock
     productos_bajo_stock = Producto.objects.filter(stock__lte=5)
+
+    # Ganancia neta total
+    ganancia_neta_total = int(sum([p['ganancia_real'] for p in productos_globales]) or 0)
 
     context = {
         'vendedores': vendedores,
@@ -718,13 +739,29 @@ def estadisticas_ventas(request):
         'total_ganancia': total_ganancia,
         'ventas_por_vendedor': ventas_por_vendedor,
         'productos_mas_vendidos': productos_mas_vendidos,
+        'productos_globales': productos_globales,
         'productos_bajo_stock': productos_bajo_stock,
-        'comision_porcentaje': comision_porcentaje
+        'comision_porcentaje': comision_porcentaje,
+        'ganancia_neta_total': ganancia_neta_total
     }
 
     return render(request, 'ventas/estadisticas_ventas.html', context)
 
 
+from django.contrib import messages
+from django.shortcuts import redirect
+from .models import Venta
+
+@login_required
+def eliminar_ventas(request):
+    if request.method == 'POST':
+        ids = request.POST.getlist('ventas_a_eliminar')
+        if ids:
+            Venta.objects.filter(id__in=ids).delete()
+            messages.success(request, f'Se eliminaron {len(ids)} ventas.')
+        else:
+            messages.warning(request, 'No seleccionaste ninguna venta.')
+    return redirect('resumen_ventas')  # Ajusta el nombre de tu URL
 
 
 

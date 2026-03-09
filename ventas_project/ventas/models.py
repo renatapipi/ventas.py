@@ -15,6 +15,21 @@ class Producto(models.Model):
     def __str__(self):
         return self.nombre
 
+    def clean(self):
+        """Validate that precio and costo are non‑negative."""
+        from django.core.exceptions import ValidationError
+        if self.precio < 0 or self.costo < 0:
+            raise ValidationError("Precio y costo deben ser valores positivos.")
+
+    def save(self, *args, **kwargs):
+        # mantenga la ganancia sincronizada
+        self.ganancia = self.precio - self.costo
+        super().save(*args, **kwargs)
+
+    class Meta:
+        ordering = ['nombre']
+        verbose_name_plural = 'productos'
+
 class Cliente(models.Model):
     nombre = models.CharField(max_length=100)
     telefono = models.CharField(max_length=20, blank=True)
@@ -24,6 +39,10 @@ class Cliente(models.Model):
     def __str__(self):
         return self.nombre
 
+    class Meta:
+        ordering = ['nombre']
+        verbose_name_plural = 'clientes'
+
 class Venta(models.Model):
     vendedor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     cliente = models.ForeignKey(Cliente, on_delete=models.SET_NULL, null=True, blank=True)
@@ -31,8 +50,19 @@ class Venta(models.Model):
     total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     pagada = models.BooleanField(default=True)
     nota = models.TextField(blank=True)
+
     def __str__(self):
         return f"Venta {self.id} - {self.fecha.strftime('%Y-%m-%d')}"
+
+    def save(self, *args, **kwargs):
+        # recalcule el total a partir de los ítems asociados si ya existe la venta
+        if self.pk:
+            self.total = sum(i.subtotal for i in self.items.all())
+        super().save(*args, **kwargs)
+
+    class Meta:
+        ordering = ['-fecha']
+        verbose_name_plural = 'ventas'
 
 class ItemVenta(models.Model):
     venta = models.ForeignKey(Venta, related_name='items', on_delete=models.CASCADE)
@@ -45,20 +75,26 @@ class ItemVenta(models.Model):
     cantidad = models.PositiveIntegerField()
     subtotal = models.DecimalField(max_digits=12, decimal_places=2)
 
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.cantidad <= 0:
+            raise ValidationError("La cantidad debe ser mayor que cero.")
+
     def save(self, *args, **kwargs):
         if self.producto:
-            # Verificar stock antes de descontar
-            if self.producto.stock < self.cantidad:
-                raise ValueError(f"No hay suficiente stock de {self.producto.nombre}")
-            
             self.subtotal = self.producto.precio * self.cantidad
-            # Descontar stock
-            self.producto.stock -= self.cantidad
-            self.producto.save()
         else:
             self.subtotal = 0
 
         super().save(*args, **kwargs)
+
+        # actualizar total de la venta padre
+        venta = self.venta
+        venta.total = sum(i.subtotal for i in venta.items.all())
+        venta.save(update_fields=['total'])
+
+    class Meta:
+        ordering = ['venta', 'producto']
 
 
 
@@ -66,7 +102,7 @@ class MovimientoCuentaCorriente(models.Model):
     cliente = models.ForeignKey(
         Cliente, 
         on_delete=models.CASCADE, 
-        related_name='movimientocuentacorriente'  # <- agregado
+        related_name='movimientocuentacorriente'
     )
     venta = models.ForeignKey(
         Venta, 
@@ -83,6 +119,11 @@ class MovimientoCuentaCorriente(models.Model):
 
     def __str__(self):
         return f"{self.tipo} {self.monto} - {self.cliente.nombre}"
+
+    class Meta:
+        ordering = ['-fecha']
+        verbose_name = 'movimiento de cuenta corriente'
+        verbose_name_plural = 'movimientos de cuenta corriente'
 
 
 class Usuario(AbstractUser):
@@ -103,8 +144,13 @@ class Usuario(AbstractUser):
         verbose_name='permisos de usuario',
     )
 
+    def __str__(self):
+        return self.get_full_name() or self.username
+
     class Meta:
         db_table = 'usuarios'
+        verbose_name = 'usuario'
+        verbose_name_plural = 'usuarios'
 
 
 
