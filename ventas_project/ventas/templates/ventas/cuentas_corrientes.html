@@ -1,55 +1,130 @@
 {% extends 'base.html' %}
+
 {% block content %}
 <div class="container mt-4">
-    <h2>Cuenta Corriente - {{ cliente.nombre }}</h2>
+    <div class="row">
+        <div class="col-12 mb-4">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2>Cuentas corrientes</h2>
+                    <p class="text-muted mb-0">Detalle ordenado por fecha y acceso rápido para registrar pagos.</p>
+                </div>
+                <a href="{% url 'saldos_clientes' %}?cliente={{ cliente.id }}" class="btn btn-outline-secondary">
+                    Volver al listado
+                </a>
+            </div>
+        </div>
+    </div>
 
-    <h5 class="mb-3">
-        Deuda Total:
-        {% if deuda_total > 0 %}
-            <span class="text-danger">${{ deuda_total }}</span>
-        {% else %}
-            <span class="text-success">Sin deuda</span>
-        {% endif %}
-    </h5>
+    <div class="row g-4">
+        <div class="col-lg-4">
+            <div class="card shadow-sm" style="border-radius:16px;">
+                <div class="card-body">
+                    <h5 class="mb-3">{{ cliente.nombre }}</h5>
+                    <p class="text-muted small mb-1">Saldo pendiente</p>
+                    <h3 class="text-danger fw-bold mb-3">${{ resumen.pendiente|floatformat:2 }}</h3>
 
-    <a href="{% url 'registrar_pago' cliente.id %}" class="btn btn-primary mb-3">Registrar Pago</a>
+                    <div class="row text-center">
+                        <div class="col">
+                            <p class="small text-muted mb-1">Pagos</p>
+                            <strong>${{ resumen.pagos|floatformat:2 }}</strong>
+                        </div>
+                        <div class="col">
+                            <p class="small text-muted mb-1">Deudas</p>
+                            <strong>${{ resumen.deudas|floatformat:2 }}</strong>
+                        </div>
+                    </div>
 
-    <table class="table table-bordered table-striped">
-        <thead>
-            <tr>
-                <th>Fecha</th>
-                <th>Tipo</th>
-                <th>Monto</th>
-                <th>Venta Asociada</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for m in movimientos %}
-            <tr>
-                <td>{{ m.fecha|date:"Y-m-d H:i" }}</td>
-                <td>
-                    {% if m.tipo == 'deuda' %}
-                        <span class="badge bg-warning">Deuda</span>
+                    <form method="post" action="{% url 'registrar_pago' cliente.id %}" class="mt-4">
+                        {% csrf_token %}
+                        <input type="hidden" name="next_url" value="{% url 'cuentas_corrientes_detalle' cliente.id %}">
+                        <div class="mb-3">
+                            <label class="form-label">Monto a pagar</label>
+                            <input type="number" name="monto" min="0.01" step="0.01" max="{{ resumen.pendiente }}"
+                                   value="{{ resumen.pendiente }}" class="form-control bg-light">
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="submit" name="tipo_pago" value="total" class="btn btn-success w-100">
+                                Pago total
+                            </button>
+                            <button type="submit" name="tipo_pago" value="parcial" class="btn btn-outline-primary w-100">
+                                Pago parcial
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            <div class="card shadow-sm" style="border-radius:16px;">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0">Movimientos recientes</h5>
+                        <span class="text-muted small">{{ resumen.movimientos }} entradas</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-borderless">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Tipo</th>
+                                    <th>Monto</th>
+                                    <th>Detalle</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for m in movimientos %}
+                                <tr>
+                                    <td>{{ m.fecha|date:"d/m/Y H:i" }}</td>
+                                    <td>
+                                        <span class="badge {% if m.tipo == 'deuda' %}bg-warning{% else %}bg-success{% endif %}">
+                                            {{ m.get_tipo_display }}
+                                        </span>
+                                    </td>
+                                    <td class="{% if m.tipo == 'deuda' %}text-danger{% else %}text-success{% endif %}">
+                                        ${{ m.monto|floatformat:2 }}
+                                    </td>
+                                    <td>
+                                        {% if m.venta %}
+                                            Venta #{{ m.venta.id }}
+                                        {% else %}
+                                            Cuenta corriente
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted">No hay movimientos registrados.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm mt-3" style="border-radius:16px;">
+                <div class="card-body">
+                    <h5 class="mb-3">Ventas pendientes</h5>
+                    {% if ventas_pendientes %}
+                    <div class="list-group list-group-flush">
+                        {% for venta in ventas_pendientes %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center border-0 px-0 py-2">
+                            <div>
+                                <strong>#{{ venta.id }}</strong>
+                                <p class="small text-muted mb-0">{{ venta.fecha|date:"d/m/Y" }}</p>
+                            </div>
+                            <span>${{ venta.total|floatformat:2 }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
                     {% else %}
-                        <span class="badge bg-success">Pago</span>
+                    <p class="text-muted mb-0">No hay ventas a cuenta.</p>
                     {% endif %}
-                </td>
-                <td>${{ m.monto }}</td>
-                <td>
-                    {% if m.venta %}
-                        <a href="{% url 'detalle_venta' m.venta.id %}">Venta #{{ m.venta.id }}</a>
-                    {% else %}
-                        ---
-                    {% endif %}
-                </td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="4" class="text-center">No hay movimientos en la cuenta corriente.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
-

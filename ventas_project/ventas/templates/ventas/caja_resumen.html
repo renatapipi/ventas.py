@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Resumen de caja{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card shadow-lg border-0" style="border-radius:22px;">
+        <div class="card-body">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+                <div>
+                    <h3 class="mb-1">Caja del {{ caja.fecha_apertura|date:"d/m/Y" }}</h3>
+                    <p class="text-muted mb-0">Abierta por {{ caja.usuario.get_full_name|default:caja.usuario.username }} - Saldo inicial: ${{ caja.saldo_inicial|floatformat:2 }}</p>
+                </div>
+                <div class="text-md-end">
+                    <p class="mb-1 small">Saldo actual</p>
+                    <h2 class="fw-bold text-success">${{ saldo_actual|floatformat:2 }}</h2>
+                    <a href="{% url 'cerrar_caja' %}" class="btn btn-outline-danger btn-sm">Cerrar caja</a>
+                </div>
+            </div>
+            <div class="row mt-4 g-3">
+                <div class="col-md-4 col-xl-3">
+                    <div class="p-3 rounded-4" style="background:#ecfdf5;">
+                        <p class="small text-success mb-1">Ingresos</p>
+                        <h4 class="fw-bold mb-0">${{ ingresos|floatformat:2 }}</h4>
+                    </div>
+                </div>
+                <div class="col-md-4 col-xl-3">
+                    <div class="p-3 rounded-4" style="background:#fee2e2;">
+                        <p class="small text-danger mb-1">Egresos</p>
+                        <h4 class="fw-bold mb-0">${{ egresos|floatformat:2 }}</h4>
+                    </div>
+                </div>
+                <div class="col-md-4 col-xl-3">
+                    <div class="p-3 rounded-4" style="background:#e0f2fe;">
+                        <p class="small text-primary mb-1">Movimientos</p>
+                        <h4 class="fw-bold mb-0">{{ movimientos.count }}</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4 g-4">
+        <div class="col-lg-6">
+            <div class="card shadow-sm" style="border-radius:18px;">
+                <div class="card-body">
+                    <h5 class="mb-3">Registrar movimiento</h5>
+                    <form method="post" action="{% url 'registrar_movimiento_caja' %}" class="row g-3">
+                        {% csrf_token %}
+                        <div class="col-12">
+                            <label class="form-label">Tipo</label>
+                            {{ form.tipo }}
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Descripción</label>
+                            {{ form.descripcion }}
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Monto</label>
+                            {{ form.monto }}
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary rounded-pill w-100">Agregar movimiento</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card shadow-sm" style="border-radius:18px;">
+                <div class="card-body">
+                    <h5 class="mb-3">Movimientos recientes</h5>
+                    <div class="table-responsive">
+                        <table class="table table-borderless mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Tipo</th>
+                                    <th class="text-end">Monto</th>
+                                    <th>Detalle</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for m in movimientos %}
+                                <tr>
+                                    <td>{{ m.fecha|date:"H:i" }}</td>
+                                    <td>
+                                        <span class="badge {% if m.tipo == 'ingreso' or m.tipo == 'apertura' %}bg-success{% else %}bg-danger{% endif %}">
+                                            {{ m.get_tipo_display }}
+                                        </span>
+                                    </td>
+                                    <td class="text-end {% if m.tipo != 'egreso' %}text-success{% else %}text-danger{% endif %}">
+                                        ${{ m.monto|floatformat:2 }}
+                                    </td>
+                                    <td>{{ m.descripcion }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted">Todavía no se registraron movimientos.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

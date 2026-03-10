@@ -5,13 +5,37 @@
     <meta charset="UTF-8" />
     <title>{% block title %}Sistema de Ventas{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <style>
+        .app-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            transition: transform 0.2s ease, color 0.2s ease;
+        }
+        .app-btn i {
+            font-size: 1.2rem;
+            margin-bottom: 0.2rem;
+        }
+        .app-btn:hover {
+            transform: translateY(-2px);
+        }
+    </style>
 </head>
 <body>
 
 <!-- Barra de navegación -->
 <nav class="navbar navbar-expand-lg navbar-dark" style="background: linear-gradient(to right, #000000, #555555);">
-  <div class="container">
-    <a class="navbar-brand" href="{% url 'home' %}">ONIX STORE</a>
+    <div class="container d-flex align-items-center justify-content-between">
+    <a class="navbar-brand app-btn text-center" href="{% url 'home' %}">
+        <i class="bi bi-cash-stack"></i>
+        <p class="m-0">ONIX STORE</p>
+        <small class="text-white-50">Inicio</small>
+    </a>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
       <span class="navbar-toggler-icon"></span>
     </button>
@@ -27,9 +51,11 @@
                 <li class="nav-item"><a class="nav-link" href="{% url 'resumen_ventas' %}">Resumenes</a></li>
                 <li class="nav-item"><a class="nav-link" href="{% url 'saldos_clientes' %}">Saldos Clientes</a></li>
                 <li class="nav-item"><a class="nav-link" href="{% url 'estadisticas_ventas' %}">Estadísticas</a></li>
+                <li class="nav-item"><a class="nav-link" href="{% url 'caja_resumen' %}">Caja</a></li>
             {% elif user.rol == 'vendedor' %}
                 <li class="nav-item"><a class="nav-link" href="{% url 'registrar_venta' %}">Registrar Venta</a></li>
                 <li class="nav-item"><a class="nav-link" href="{% url 'clientes' %}">Clientes</a></li>
+                <li class="nav-item"><a class="nav-link" href="{% url 'caja_resumen' %}">Caja</a></li>
             {% endif %}
         {% endif %}
       </ul>

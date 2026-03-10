@@ -1,0 +1,14 @@
+env/
+ventas_project/env/
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.egg-info/
+db.sqlite3
+staticfiles/
+*.log
+.vscode/
+ventas_project/static/
+run_out.txt
+run_err.txt

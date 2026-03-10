@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Cerrar caja{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow border-0">
+                <div class="card-body">
+                    <h4 class="fw-bold">Cerrar caja del {{ caja.fecha_apertura|date:"d/m/Y" }}</h4>
+                    <p class="text-muted">Esto registrará el saldo final y marcará la caja como cerrada. Podrás abrir una nueva caja cuando comience el próximo turno.</p>
+                    <form method="post" class="mt-4">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger me-2">Cerrar caja</button>
+                        <a href="{% url 'caja_resumen' %}" class="btn btn-outline-secondary">Volver</a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

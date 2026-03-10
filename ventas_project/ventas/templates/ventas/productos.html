@@ -10,6 +10,41 @@
         <a href="{% url 'home' %}" class="btn btn-secondary">Volver al inicio</a>
     </div>
 
+    {% if messages %}
+    <div class="mb-3">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}" role="alert">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Actualizar precios por rubro</h5>
+            <p class="card-text text-muted">Aplica un porcentaje a todos los productos de un rubro (o todos si seleccionás "Todos los rubros").</p>
+            <form method="post" action="{% url 'actualizar_precios_rubro' %}" class="row g-3 align-items-end">
+                {% csrf_token %}
+                <div class="col-md-6">
+                    <label class="form-label">Rubro</label>
+                    <select name="rubro" class="form-select">
+                        {% for opcion in rubro_options %}
+                        <option value="{{ opcion.value }}">{{ opcion.label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Porcentaje (%)</label>
+                    <input type="number" name="porcentaje" class="form-control" step="0.01" placeholder="Ej: 5 o -3" required>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">Aplicar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <table class="table table-striped table-hover">
         <thead class="table-dark">
             <tr>

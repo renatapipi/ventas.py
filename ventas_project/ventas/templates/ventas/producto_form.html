@@ -1,33 +1,136 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container mt-5" style="max-width:500px; background: linear-gradient(135deg, #ffffff, #e6e6e6); 
-                                   padding: 30px; border-radius: 15px; box-shadow: 0 6px 15px rgba(0,0,0,0.2);">
-    <h2 style="text-align:center; font-weight:700; color:#222; margin-bottom:30px;">
-        {% if form.instance.pk %}Editar Producto{% else %}Nuevo Producto{% endif %}
-    </h2>
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card border-0 shadow-lg" style="border-radius:22px;">
+                <div class="row g-0 align-items-stretch">
+                    <div class="col-md-6" style="background: linear-gradient(180deg, #0f172a, #1e3a8a); border-top-left-radius:22px; border-bottom-left-radius:22px;">
+                        <div class="p-4 text-white h-100 d-flex flex-column justify-content-between">
+                            <div>
+                                <h3 class="fw-bold">{{ form.instance.pk|yesno:"Editar Producto,Nuevo Producto" }}</h3>
+                                <p class="opacity-75">Configura nombre, descripción, stock y categorías. El panel de la derecha calcula automáticamente el margen cuando escribís costo y precio.</p>
+                            </div>
+                            <div class="mt-4">
+                                <p class="mb-1 small text-uppercase opacity-50">Indicadores rápidos</p>
+                                <h1 class="display-6 fw-bold" id="profit-percent-label">+0%</h1>
+                                <p class="small">Margen actual respecto al costo. Modificá el costo o el precio para verlo en vivo.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-lg-5 p-4">
+                            {% if messages %}
+                                {% for message in messages %}
+                                    <div class="alert alert-{{ message.tags }} rounded-3" role="alert">
+                                        {{ message|safe }}
+                                    </div>
+                                {% endfor %}
+                            {% endif %}
 
-    {% if messages %}
-        {% for message in messages %}
-            <div class="alert alert-info" style="border-radius:8px; text-align:center;">{{ message|safe }}</div>
-        {% endfor %}
-    {% endif %}
-
-    <form method="post">
-        {% csrf_token %}
-        <div class="mb-3">
-            {{ form.as_p }}
+                            <form method="post" class="row g-3">
+                                {% csrf_token %}
+                                <div class="col-12">
+                                    <label class="form-label">Nombre</label>
+                                    {{ form.nombre }}
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">Marca</label>
+                                    {{ form.marca }}
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">Descripción</label>
+                                    {{ form.descripcion }}
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Stock</label>
+                                    {{ form.stock }}
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Rubro</label>
+                                    {{ form.rubro }}
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Costo</label>
+                                    {{ form.costo }}
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Precio de venta</label>
+                                    {{ form.precio }}
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">Margen deseado (%)</label>
+                                    <input id="profit-percent" type="number" step="0.01" min="-99" class="form-control form-control-lg" placeholder="0">
+                                </div>
+                                <div class="d-none">
+                                    {{ form.ganancia }}
+                                </div>
+                                <div class="col-12 d-flex gap-2">
+                                    <button type="submit" class="btn btn-primary flex-fill rounded-pill fw-bold">Guardar</button>
+                                    <a href="{% url 'productos' %}" class="btn btn-outline-secondary flex-fill rounded-pill">Cancelar</a>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="d-flex justify-content-between mt-4">
-            <button type="submit" class="btn btn-success flex-fill me-2" style="font-weight:bold; transition:0.3s;"
-                    onmouseover="this.style.backgroundColor='#28a745';" onmouseout="this.style.backgroundColor='#218838';">
-                Guardar
-            </button>
-            <a href="{% url 'productos' %}" class="btn btn-danger flex-fill ms-2" style="font-weight:bold; transition:0.3s;"
-               onmouseover="this.style.backgroundColor='#dc3545';" onmouseout="this.style.backgroundColor='#c82333';">
-               Cancelar
-            </a>
-        </div>
-    </form>
+    </div>
 </div>
+
+<script>
+    (() => {
+        const costoInput = document.getElementById('id_costo');
+        const precioInput = document.getElementById('id_precio');
+        const percentInput = document.getElementById('profit-percent');
+        const percentLabel = document.getElementById('profit-percent-label');
+
+        const toDecimal = (value) => {
+            const parsed = parseFloat(value);
+            return Number.isFinite(parsed) ? parsed : 0;
+        };
+
+        const updatePercent = () => {
+            const costo = toDecimal(costoInput.value);
+            const precio = toDecimal(precioInput.value);
+            if (costo <= 0) {
+                percentInput.value = '';
+                percentLabel.textContent = '+0%';
+                return;
+            }
+            const margin = ((precio - costo) / costo) * 100;
+            percentInput.value = margin.toFixed(2);
+            percentLabel.textContent = `${margin >= 0 ? '+' : ''}${margin.toFixed(2)}%`;
+        };
+
+        let skipPriceUpdate = false;
+        const updatePriceFromPercent = () => {
+            if (skipPriceUpdate) {
+                skipPriceUpdate = false;
+                return;
+            }
+            const costo = toDecimal(costoInput.value);
+            const percent = toDecimal(percentInput.value);
+            if (costo <= 0) return;
+            const nuevoPrecio = costo + (costo * percent / 100);
+            skipPriceUpdate = true;
+            precioInput.value = nuevoPrecio.toFixed(2);
+            percentLabel.textContent = `${percent >= 0 ? '+' : ''}${percent.toFixed(2)}%`;
+        };
+
+        costoInput.addEventListener('input', () => {
+            updatePercent();
+            skipPriceUpdate = true;
+        });
+        precioInput.addEventListener('input', () => {
+            updatePercent();
+        });
+        percentInput.addEventListener('input', updatePriceFromPercent);
+
+        document.addEventListener('DOMContentLoaded', () => {
+            updatePercent();
+        });
+    })();
+</script>
 {% endblock %}
 

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Apertura de caja{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card shadow-lg border-0 p-4" style="border-radius:20px;">
+                <h3 class="fw-bold mb-3 text-center">Abrir caja diaria</h3>
+                <p class="text-muted text-center mb-4">Registrá el saldo inicial para comenzar el turno y la caja cerrará al final del día automáticamente.</p>
+
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} rounded-3">{{ message|safe }}</div>
+                    {% endfor %}
+                {% endif %}
+
+                <form method="post" class="row g-3">
+                    {% csrf_token %}
+                    <div class="col-12">
+                        <label class="form-label">Saldo inicial</label>
+                        {{ form.saldo_inicial }}
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Notas</label>
+                        {{ form.notas }}
+                    </div>
+                    <div class="col-12 d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg rounded-pill">Abrir caja</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
